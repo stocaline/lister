@@ -2,7 +2,7 @@
 
 Lister é um quadro de tarefas interativo no estilo Kanban, projetado para ajudar a organizar suas tarefas de forma visual e intuitiva. Crie colunas, adicione cartões e gerencie seu fluxo de trabalho com uma interface simples de arrastar e soltar.
 
-![Lister Screenshot](https://i.imgur.com/YOUR_SCREENSHOT_URL.png) 
+![Lister Screenshot](https://github.com/stocaline/lister/blob/master/public/thumb.png) 
 
 ---
 
