@@ -16,15 +16,17 @@ export interface Task {
   subtasks?: Subtask[];
 }
 
+export interface Board {
+  id: string;
+  title: string;
+  tasks: Record<string, Task>;
+  columns: Record<string, Column>;
+  columnOrder: string[];
+}
+
 export interface Column {
   id: string;
   title: string;
   description?: string;
-  tasks: Task[];
-}
-
-export interface Board {
-  id: string;
-  title: string;
-  columns: Column[];
+  taskIds: string[];
 }

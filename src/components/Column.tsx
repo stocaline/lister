@@ -6,11 +6,12 @@ import TaskCard from './TaskCard';
 
 interface ColumnProps {
   column: Column;
+  tasks: Task[];
   setBoard: React.Dispatch<React.SetStateAction<Board>>;
   deleteColumn: (id: string) => void;
 }
 
-const ColumnComponent: React.FC<ColumnProps> = ({ column, setBoard, deleteColumn }) => {
+const ColumnComponent: React.FC<ColumnProps> = ({ column, tasks, setBoard, deleteColumn }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(column.title);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -41,30 +42,40 @@ const ColumnComponent: React.FC<ColumnProps> = ({ column, setBoard, deleteColumn
   };
 
   const handleAddTask = () => {
+    const newTaskId = `task-${Date.now()}-${Math.random()}`;
     const newTask: Task = {
-      id: `task-${Date.now()}`,
+      id: newTaskId,
       content: 'Nova Tarefa',
       completed: false,
       createdAt: Date.now(),
     };
-    setBoard(board => {
-      const newColumns = board.columns.map(col => {
-        if (col.id === column.id) {
-          return { ...col, tasks: [...col.tasks, newTask] };
-        }
-        return col;
-      });
-      return { ...board, columns: newColumns };
-    });
+    setBoard(board => ({
+      ...board,
+      tasks: {
+        ...board.tasks,
+        [newTaskId]: newTask,
+      },
+      columns: {
+        ...board.columns,
+        [column.id]: {
+          ...board.columns[column.id],
+          taskIds: [...board.columns[column.id].taskIds, newTaskId],
+        },
+      },
+    }));
   };
 
   const handleTitleChange = (newTitle: string) => {
-    setBoard(board => {
-      const newColumns = board.columns.map(col => 
-        col.id === column.id ? { ...col, title: newTitle } : col
-      );
-      return { ...board, columns: newColumns };
-    });
+    setBoard(board => ({
+        ...board,
+        columns: {
+            ...board.columns,
+            [column.id]: {
+                ...board.columns[column.id],
+                title: newTitle,
+            }
+        }
+    }));
   };
 
   const handleTitleBlur = () => {
@@ -80,12 +91,16 @@ const ColumnComponent: React.FC<ColumnProps> = ({ column, setBoard, deleteColumn
   };
 
   const handleDescriptionChange = (newDescription: string) => {
-    setBoard(board => {
-        const newColumns = board.columns.map(col =>
-            col.id === column.id ? { ...col, description: newDescription } : col
-        );
-        return { ...board, columns: newColumns };
-    });
+    setBoard(board => ({
+        ...board,
+        columns: {
+            ...board.columns,
+            [column.id]: {
+                ...board.columns[column.id],
+                description: newDescription,
+            }
+        }
+    }));
   };
 
   const handleDescriptionBlur = () => {
@@ -133,9 +148,9 @@ const ColumnComponent: React.FC<ColumnProps> = ({ column, setBoard, deleteColumn
       </div>
 
       <div className="flex-grow">
-        <SortableContext items={column.tasks.map(task => task.id)}>
+        <SortableContext items={tasks.map(task => task.id)}>
           <div className="space-y-4">
-            {column.tasks.map(task => (
+            {tasks.map(task => (
               <TaskCard key={task.id} task={task} setBoard={setBoard} />
             ))}
           </div>

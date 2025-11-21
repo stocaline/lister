@@ -7,31 +7,32 @@ import ColumnComponent from './Column';
 const initialBoard: Board = {
   id: 'board-1',
   title: 'Meu Board',
-  columns: [
-    {
+  tasks: {
+    'task-1': { id: 'task-1', content: 'Estudar dnd-kit', completed: false, createdAt: 1700000000000 },
+    'task-2': { id: 'task-2', content: 'Criar componentes', completed: false, createdAt: 1700000000000 },
+    'task-3': { id: 'task-3', content: 'Desenvolver o layout', completed: false, createdAt: 1700000000000 },
+  },
+  columns: {
+    'col-1': {
       id: 'col-1',
       title: 'To Do',
       description: 'Tarefas a serem feitas',
-      tasks: [
-        { id: 'task-1', content: 'Estudar dnd-kit', completed: false, createdAt: 1700000000000 },
-        { id: 'task-2', content: 'Criar componentes', completed: false, createdAt: 1700000000000 },
-      ],
+      taskIds: ['task-1', 'task-2'],
     },
-    {
+    'col-2': {
       id: 'col-2',
       title: 'In Progress',
       description: 'Tarefas em andamento',
-      tasks: [
-        { id: 'task-3', content: 'Desenvolver o layout', completed: false, createdAt: 1700000000000 },
-      ],
+      taskIds: ['task-3'],
     },
-    {
+    'col-3': {
       id: 'col-3',
       title: 'Done',
       description: 'Tarefas concluídas',
-      tasks: [],
+      taskIds: [],
     },
-  ],
+  },
+  columnOrder: ['col-1', 'col-2', 'col-3'],
 };
 
 const BoardComponent: React.FC = () => {
@@ -81,11 +82,11 @@ const BoardComponent: React.FC = () => {
 
     if (isActiveAColumn) {
       setBoard(board => {
-        const activeColumnIndex = board.columns.findIndex(col => col.id === activeId);
-        const overColumnIndex = board.columns.findIndex(col => col.id === overId);
+        const activeColumnIndex = board.columnOrder.indexOf(activeId as string);
+        const overColumnIndex = board.columnOrder.indexOf(overId as string);
         return {
           ...board,
-          columns: arrayMove(board.columns, activeColumnIndex, overColumnIndex),
+          columnOrder: arrayMove(board.columnOrder, activeColumnIndex, overColumnIndex),
         };
       });
     }
@@ -95,8 +96,8 @@ const BoardComponent: React.FC = () => {
     const { active, over } = event;
     if (!over) return;
 
-    const activeId = active.id;
-    const overId = over.id;
+    const activeId = active.id as string;
+    const overId = over.id as string;
 
     if (activeId === overId) return;
 
@@ -104,56 +105,67 @@ const BoardComponent: React.FC = () => {
     if (!isActiveATask) return;
 
     setBoard(board => {
-      const findColumn = (id: string | number) => board.columns.find(col => col.id === id || col.tasks.some(task => task.id === id));
-      
-      const activeColumn = findColumn(activeId);
-      const overColumn = findColumn(overId);
+      const findColumnByTaskId = (taskId: string) => {
+        return Object.values(board.columns).find(col => col.taskIds.includes(taskId));
+      };
+
+      const activeColumn = findColumnByTaskId(activeId);
+      let overColumn = board.columns[overId] || findColumnByTaskId(overId);
 
       if (!activeColumn || !overColumn) return board;
-
-      const activeTask = activeColumn.tasks.find(task => task.id === activeId);
-      if (!activeTask) return board;
-
-      // Handle moving within the same column
+      
       if (activeColumn.id === overColumn.id) {
-        const activeIndex = activeColumn.tasks.findIndex(t => t.id === activeId);
-        const overIndex = overColumn.tasks.findIndex(t => t.id === overId);
-
+        // Move task within the same column
+        const activeIndex = activeColumn.taskIds.indexOf(activeId);
+        const overIndex = overColumn.taskIds.indexOf(overId);
+        
         if (activeIndex !== -1 && overIndex !== -1) {
-          const newTasks = arrayMove(activeColumn.tasks, activeIndex, overIndex);
-          const newColumns = board.columns.map(col => {
-            if (col.id === activeColumn.id) {
-              return { ...col, tasks: newTasks };
-            }
-            return col;
-          });
+          const newTaskIds = arrayMove(activeColumn.taskIds, activeIndex, overIndex);
+          const newColumns = {
+            ...board.columns,
+            [activeColumn.id]: {
+              ...activeColumn,
+              taskIds: newTaskIds,
+            },
+          };
           return { ...board, columns: newColumns };
         }
-      } else { // Handle moving to a different column
-        const newActiveTasks = activeColumn.tasks.filter(t => t.id !== activeId);
-        let newOverTasks = [...overColumn.tasks];
+      } else {
+        // Move task to a different column
+        const newActiveTaskIds = activeColumn.taskIds.filter(id => id !== activeId);
+        const newActiveColumn = {
+          ...activeColumn,
+          taskIds: newActiveTaskIds,
+        };
 
         const isOverTask = over.data.current?.type === 'Task';
+        let newOverTaskIds = [...overColumn.taskIds];
+
         if (isOverTask) {
-          const overIndex = overColumn.tasks.findIndex(t => t.id === overId);
+          const overIndex = overColumn.taskIds.indexOf(overId);
           if (overIndex !== -1) {
-            newOverTasks.splice(overIndex, 0, activeTask);
+            newOverTaskIds.splice(overIndex, 0, activeId);
           } else {
-            newOverTasks.push(activeTask);
+            newOverTaskIds.push(activeId);
           }
         } else {
-          newOverTasks.push(activeTask);
+           // It's a column
+           overColumn = board.columns[overId];
+           if(overColumn) {
+             newOverTaskIds.push(activeId);
+           }
         }
+        
+        const newOverColumn = {
+          ...overColumn,
+          taskIds: newOverTaskIds,
+        };
 
-        const newColumns = board.columns.map(col => {
-          if (col.id === activeColumn.id) {
-            return { ...col, tasks: newActiveTasks };
-          }
-          if (col.id === overColumn.id) {
-            return { ...col, tasks: newOverTasks };
-          }
-          return col;
-        });
+        const newColumns = {
+          ...board.columns,
+          [activeColumn.id]: newActiveColumn,
+          [overColumn.id]: newOverColumn,
+        };
 
         return { ...board, columns: newColumns };
       }
@@ -184,10 +196,29 @@ const BoardComponent: React.FC = () => {
   };
 
   const deleteColumn = (id: string) => {
-    setBoard(board => ({
-      ...board,
-      columns: board.columns.filter(col => col.id !== id),
-    }));
+    setBoard(board => {
+      const columnToDelete = board.columns[id];
+      if (!columnToDelete) return board;
+
+      const tasksToDelete = new Set(columnToDelete.taskIds);
+      const newTasks = Object.keys(board.tasks)
+        .filter(taskId => !tasksToDelete.has(taskId))
+        .reduce((acc, taskId) => {
+          acc[taskId] = board.tasks[taskId];
+          return acc;
+        }, {} as Record<string, Task>);
+
+      const { [id]: deletedColumn, ...remainingColumns } = board.columns;
+
+      const newColumnOrder = board.columnOrder.filter(colId => colId !== id);
+
+      return {
+        ...board,
+        tasks: newTasks,
+        columns: remainingColumns,
+        columnOrder: newColumnOrder,
+      };
+    });
   };
 
   const [isEditingBoardTitle, setIsEditingBoardTitle] = useState(false);
@@ -253,21 +284,28 @@ const BoardComponent: React.FC = () => {
           </div>
         </div>
         <div className="flex items-start space-x-4 overflow-x-auto pb-4">
-          <SortableContext items={board.columns.map(col => col.id)}>
-            {board.columns.map(col => (
-              <ColumnComponent key={col.id} column={col} setBoard={setBoard} deleteColumn={deleteColumn} />
-            ))}
+          <SortableContext items={board.columnOrder}>
+            {board.columnOrder.map(colId => {
+              const col = board.columns[colId];
+              const tasks = col.taskIds.map(taskId => board.tasks[taskId]);
+              return <ColumnComponent key={col.id} column={col} tasks={tasks} setBoard={setBoard} deleteColumn={deleteColumn} />
+            })}
           </SortableContext>
           <button
             onClick={() => {
+              const newColumnId = `col-${Date.now()}`;
               const newColumn: Column = {
-                id: `col-${Date.now()}`,
+                id: newColumnId,
                 title: 'Nova Coluna',
-                tasks: [],
+                taskIds: [],
               };
               setBoard(board => ({
                 ...board,
-                columns: [...board.columns, newColumn],
+                columns: {
+                  ...board.columns,
+                  [newColumnId]: newColumn,
+                },
+                columnOrder: [...board.columnOrder, newColumnId],
               }));
             }}
             className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded border border-gray-300 h-fit flex-shrink-0"

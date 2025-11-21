@@ -32,42 +32,54 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, setBoard }) => {
   };
 
   const handleContentChange = (newContent: string) => {
-    setBoard(board => {
-      const newColumns = board.columns.map(col => ({
-        ...col,
-        tasks: col.tasks.map(t => t.id === task.id ? { ...t, content: newContent } : t)
-      }));
-      return { ...board, columns: newColumns };
-    });
+    setBoard(board => ({
+      ...board,
+      tasks: {
+        ...board.tasks,
+        [task.id]: {
+          ...board.tasks[task.id],
+          content: newContent,
+        },
+      },
+    }));
   };
 
   const handleToggleCompleted = () => {
     setBoard(board => {
-      const newColumns = board.columns.map(col => ({
-        ...col,
-        tasks: col.tasks.map(t => {
-          if (t.id === task.id) {
-            const isCompleted = !t.completed;
-            return {
-              ...t,
-              completed: isCompleted,
-              completedAt: isCompleted ? Date.now() : null,
-            };
-          }
-          return t;
-        })
-      }));
-      return { ...board, columns: newColumns };
+        const isCompleted = !board.tasks[task.id].completed;
+        return {
+            ...board,
+            tasks: {
+                ...board.tasks,
+                [task.id]: {
+                    ...board.tasks[task.id],
+                    completed: isCompleted,
+                    completedAt: isCompleted ? Date.now() : null,
+                }
+            }
+        }
     });
   };
 
   const handleDelete = () => {
     setBoard(board => {
-      const newColumns = board.columns.map(col => {
-        const newTasks = col.tasks.filter(t => t.id !== task.id);
-        return { ...col, tasks: newTasks };
-      });
-      return { ...board, columns: newColumns };
+      const { [task.id]: deletedTask, ...remainingTasks } = board.tasks;
+
+      const column = Object.values(board.columns).find(c => c.taskIds.includes(task.id));
+
+      if (!column) return board;
+
+      return {
+        ...board,
+        tasks: remainingTasks,
+        columns: {
+          ...board.columns,
+          [column.id]: {
+            ...column,
+            taskIds: column.taskIds.filter(id => id !== task.id),
+          },
+        },
+      };
     });
   };
 
