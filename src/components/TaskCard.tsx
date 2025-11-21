@@ -45,9 +45,17 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, setBoard }) => {
     setBoard(board => {
       const newColumns = board.columns.map(col => ({
         ...col,
-        tasks: col.tasks.map(t => 
-          t.id === task.id ? { ...t, completed: !t.completed } : t
-        )
+        tasks: col.tasks.map(t => {
+          if (t.id === task.id) {
+            const isCompleted = !t.completed;
+            return {
+              ...t,
+              completed: isCompleted,
+              completedAt: isCompleted ? Date.now() : null,
+            };
+          }
+          return t;
+        })
       }));
       return { ...board, columns: newColumns };
     });

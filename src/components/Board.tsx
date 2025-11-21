@@ -13,8 +13,8 @@ const initialBoard: Board = {
       title: 'To Do',
       description: 'Tarefas a serem feitas',
       tasks: [
-        { id: 'task-1', content: 'Estudar dnd-kit', completed: false },
-        { id: 'task-2', content: 'Criar componentes', completed: false },
+        { id: 'task-1', content: 'Estudar dnd-kit', completed: false, createdAt: 1700000000000 },
+        { id: 'task-2', content: 'Criar componentes', completed: false, createdAt: 1700000000000 },
       ],
     },
     {
@@ -22,7 +22,7 @@ const initialBoard: Board = {
       title: 'In Progress',
       description: 'Tarefas em andamento',
       tasks: [
-        { id: 'task-3', content: 'Desenvolver o layout', completed: false },
+        { id: 'task-3', content: 'Desenvolver o layout', completed: false, createdAt: 1700000000000 },
       ],
     },
     {

@@ -45,6 +45,7 @@ const ColumnComponent: React.FC<ColumnProps> = ({ column, setBoard, deleteColumn
       id: `task-${Date.now()}`,
       content: 'Nova Tarefa',
       completed: false,
+      createdAt: Date.now(),
     };
     setBoard(board => {
       const newColumns = board.columns.map(col => {
