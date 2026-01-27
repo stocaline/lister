@@ -67,14 +67,14 @@ const ColumnComponent: React.FC<ColumnProps> = ({ column, tasks, setBoard, delet
 
   const handleTitleChange = (newTitle: string) => {
     setBoard(board => ({
-        ...board,
-        columns: {
-            ...board.columns,
-            [column.id]: {
-                ...board.columns[column.id],
-                title: newTitle,
-            }
+      ...board,
+      columns: {
+        ...board.columns,
+        [column.id]: {
+          ...board.columns[column.id],
+          title: newTitle,
         }
+      }
     }));
   };
 
@@ -92,29 +92,29 @@ const ColumnComponent: React.FC<ColumnProps> = ({ column, tasks, setBoard, delet
 
   const handleDescriptionChange = (newDescription: string) => {
     setBoard(board => ({
-        ...board,
-        columns: {
-            ...board.columns,
-            [column.id]: {
-                ...board.columns[column.id],
-                description: newDescription,
-            }
+      ...board,
+      columns: {
+        ...board.columns,
+        [column.id]: {
+          ...board.columns[column.id],
+          description: newDescription,
         }
+      }
     }));
   };
 
   const handleDescriptionBlur = () => {
-      setIsEditingDescription(false);
-      handleDescriptionChange(description);
+    setIsEditingDescription(false);
+    handleDescriptionChange(description);
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-gray-200 rounded-lg p-4 w-80 flex-shrink-0 flex flex-col"
+      className="bg-gray-100/80 backdrop-blur-sm rounded-2xl p-4 w-80 shrink-0 flex flex-col max-h-full border border-gray-200/50 shadow-sm"
     >
-      <div {...attributes} {...listeners} className="cursor-grab mb-2 flex justify-between items-center" onDoubleClick={() => setIsEditingTitle(true)}>
+      <div {...attributes} {...listeners} className="cursor-grab mb-4 flex justify-between items-start group" onDoubleClick={() => setIsEditingTitle(true)}>
         {isEditingTitle ? (
           <input
             type="text"
@@ -123,44 +123,54 @@ const ColumnComponent: React.FC<ColumnProps> = ({ column, tasks, setBoard, delet
             onChange={(e) => setTitle(e.target.value)}
             onBlur={handleTitleBlur}
             onKeyDown={handleTitleKeyDown}
-            className="w-full bg-transparent border-b border-gray-400 text-black font-bold text-lg"
+            className="w-full bg-transparent border-b-2 border-blue-500 text-gray-900 font-semibold text-base py-1 px-1"
           />
         ) : (
-          <h2 className="font-bold text-lg">{column.title}</h2>
+          <div className="flex flex-col">
+            <h2 className="font-semibold text-gray-900 text-base px-1">{column.title}</h2>
+            <span className="text-xs text-gray-500 font-medium px-1 mt-0.5">{tasks.length} {tasks.length === 1 ? 'tarefa' : 'tarefas'}</span>
+          </div>
         )}
-        <button onClick={() => deleteColumn(column.id)} className="ml-2 text-red-500 hover:text-red-700 flex-shrink-0">
-          X
+        <button
+          onClick={() => deleteColumn(column.id)}
+          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-gray-200"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
         </button>
       </div>
 
-      <div className="mb-4 min-h-[20px] cursor-pointer" onDoubleClick={() => setIsEditingDescription(true)}>
+      <div className="mb-4 min-h-[20px] px-1 cursor-pointer group" onDoubleClick={() => setIsEditingDescription(true)}>
         {isEditingDescription ? (
-            <textarea
-                value={description}
-                autoFocus
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={handleDescriptionBlur}
-                className="w-full text-sm text-gray-600 bg-white rounded border border-gray-400 p-1"
-            />
+          <textarea
+            value={description}
+            autoFocus
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={handleDescriptionBlur}
+            className="w-full text-sm text-gray-700 bg-white rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 p-2 shadow-sm"
+            rows={2}
+          />
         ) : (
-            <p className="text-sm text-gray-600">{description || <span className="text-gray-400">Adicionar descrição...</span>}</p>
+          <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed group-hover:text-gray-700 transition-colors">
+            {description || <span className="text-gray-400 italic text-xs">Sem descrição</span>}
+          </p>
         )}
       </div>
 
-      <div className="flex-grow">
+      <div className="grow overflow-y-auto px-1 -mx-1 custom-scrollbar">
         <SortableContext items={tasks.map(task => task.id)}>
-          <div className="space-y-4">
+          <div className="space-y-3 pb-2">
             {tasks.map(task => (
               <TaskCard key={task.id} task={task} setBoard={setBoard} />
             ))}
           </div>
         </SortableContext>
       </div>
+
       <button
         onClick={handleAddTask}
-        className="mt-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+        className="mt-3 text-gray-500 hover:text-gray-900 hover:bg-gray-200/50 font-medium py-2 px-3 rounded-lg flex items-center gap-2 transition-colors w-full text-sm"
       >
-        + Adicionar Tarefa
+        <span className="text-lg leading-none">+</span> Adicionar Tarefa
       </button>
     </div>
   );

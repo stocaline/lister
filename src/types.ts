@@ -22,6 +22,7 @@ export interface Board {
   tasks: Record<string, Task>;
   columns: Record<string, Column>;
   columnOrder: string[];
+  createdAt?: number;
 }
 
 export interface Column {

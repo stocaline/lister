@@ -4,49 +4,23 @@ import { SortableContext, arrayMove } from '@dnd-kit/sortable';
 import type { Board, Column, Task } from '../types';
 import ColumnComponent from './Column';
 
-const initialBoard: Board = {
-  id: 'board-1',
-  title: 'Meu Board',
-  tasks: {
-    'task-1': { id: 'task-1', content: 'Estudar dnd-kit', completed: false, createdAt: 1700000000000 },
-    'task-2': { id: 'task-2', content: 'Criar componentes', completed: false, createdAt: 1700000000000 },
-    'task-3': { id: 'task-3', content: 'Desenvolver o layout', completed: false, createdAt: 1700000000000 },
-  },
-  columns: {
-    'col-1': {
-      id: 'col-1',
-      title: 'To Do',
-      description: 'Tarefas a serem feitas',
-      taskIds: ['task-1', 'task-2'],
-    },
-    'col-2': {
-      id: 'col-2',
-      title: 'In Progress',
-      description: 'Tarefas em andamento',
-      taskIds: ['task-3'],
-    },
-    'col-3': {
-      id: 'col-3',
-      title: 'Done',
-      description: 'Tarefas concluídas',
-      taskIds: [],
-    },
-  },
-  columnOrder: ['col-1', 'col-2', 'col-3'],
-};
 
-const BoardComponent: React.FC = () => {
-  const [board, setBoard] = useState<Board>(() => {
-    const savedBoard = localStorage.getItem('board');
-    return savedBoard ? JSON.parse(savedBoard) : initialBoard;
-  });
+
+
+interface BoardComponentProps {
+  board: Board;
+  onBoardUpdate: (newBoard: Board) => void;
+  onImportBoard: (importedBoard: Board) => void;
+}
+
+const BoardComponent: React.FC<BoardComponentProps> = ({ board, onBoardUpdate, onImportBoard }) => {
+  // Removed local state initialization
+
 
   const [_activeColumn, setActiveColumn] = useState<Column | null>(null);
   const [_activeTask, setActiveTask] = useState<Task | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem('board', JSON.stringify(board));
-  }, [board]);
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -81,14 +55,14 @@ const BoardComponent: React.FC = () => {
     const isActiveAColumn = active.data.current?.type === 'Column';
 
     if (isActiveAColumn) {
-      setBoard(board => {
+      if (isActiveAColumn) {
         const activeColumnIndex = board.columnOrder.indexOf(activeId as string);
         const overColumnIndex = board.columnOrder.indexOf(overId as string);
-        return {
+        onBoardUpdate({
           ...board,
           columnOrder: arrayMove(board.columnOrder, activeColumnIndex, overColumnIndex),
-        };
-      });
+        });
+      }
     }
   };
 
@@ -104,73 +78,67 @@ const BoardComponent: React.FC = () => {
     const isActiveATask = active.data.current?.type === 'Task';
     if (!isActiveATask) return;
 
-    setBoard(board => {
-      const findColumnByTaskId = (taskId: string) => {
-        return Object.values(board.columns).find(col => col.taskIds.includes(taskId));
-      };
+    const findColumnByTaskId = (taskId: string) => {
+      return Object.values(board.columns).find(col => col.taskIds.includes(taskId));
+    };
 
-      const activeColumn = findColumnByTaskId(activeId);
-      let overColumn = board.columns[overId] || findColumnByTaskId(overId);
+    const activeColumn = findColumnByTaskId(activeId);
+    let overColumn = board.columns[overId] || findColumnByTaskId(overId);
 
-      if (!activeColumn || !overColumn) return board;
-      
-      if (activeColumn.id === overColumn.id) {
-        // Move task within the same column
-        const activeIndex = activeColumn.taskIds.indexOf(activeId);
-        const overIndex = overColumn.taskIds.indexOf(overId);
-        
-        if (activeIndex !== -1 && overIndex !== -1) {
-          const newTaskIds = arrayMove(activeColumn.taskIds, activeIndex, overIndex);
-          const newColumns = {
-            ...board.columns,
-            [activeColumn.id]: {
-              ...activeColumn,
-              taskIds: newTaskIds,
-            },
-          };
-          return { ...board, columns: newColumns };
-        }
-      } else {
-        // Move task to a different column
-        const newActiveTaskIds = activeColumn.taskIds.filter(id => id !== activeId);
-        const newActiveColumn = {
-          ...activeColumn,
-          taskIds: newActiveTaskIds,
-        };
+    if (!activeColumn || !overColumn) return;
 
-        const isOverTask = over.data.current?.type === 'Task';
-        let newOverTaskIds = [...overColumn.taskIds];
+    if (activeColumn.id === overColumn.id) {
+      const activeIndex = activeColumn.taskIds.indexOf(activeId);
+      const overIndex = overColumn.taskIds.indexOf(overId);
 
-        if (isOverTask) {
-          const overIndex = overColumn.taskIds.indexOf(overId);
-          if (overIndex !== -1) {
-            newOverTaskIds.splice(overIndex, 0, activeId);
-          } else {
-            newOverTaskIds.push(activeId);
-          }
-        } else {
-           // It's a column
-           overColumn = board.columns[overId];
-           if(overColumn) {
-             newOverTaskIds.push(activeId);
-           }
-        }
-        
-        const newOverColumn = {
-          ...overColumn,
-          taskIds: newOverTaskIds,
-        };
-
+      if (activeIndex !== -1 && overIndex !== -1) {
+        const newTaskIds = arrayMove(activeColumn.taskIds, activeIndex, overIndex);
         const newColumns = {
           ...board.columns,
-          [activeColumn.id]: newActiveColumn,
-          [overColumn.id]: newOverColumn,
+          [activeColumn.id]: {
+            ...activeColumn,
+            taskIds: newTaskIds,
+          },
         };
-
-        return { ...board, columns: newColumns };
+        onBoardUpdate({ ...board, columns: newColumns });
       }
-      return board;
-    });
+    } else {
+      const newActiveTaskIds = activeColumn.taskIds.filter(id => id !== activeId);
+      const newActiveColumn = {
+        ...activeColumn,
+        taskIds: newActiveTaskIds,
+      };
+
+      const isOverTask = over.data.current?.type === 'Task';
+      let newOverTaskIds = [...overColumn.taskIds];
+
+      if (isOverTask) {
+        const overIndex = overColumn.taskIds.indexOf(overId);
+        if (overIndex !== -1) {
+          newOverTaskIds.splice(overIndex, 0, activeId);
+        } else {
+          newOverTaskIds.push(activeId);
+        }
+      } else {
+        overColumn = board.columns[overId];
+        if (overColumn) {
+          newOverTaskIds.push(activeId);
+        }
+      }
+
+      const newOverColumn = {
+        ...overColumn,
+        taskIds: newOverTaskIds,
+      };
+
+      const newColumns = {
+        ...board.columns,
+        [activeColumn.id]: newActiveColumn,
+        [overColumn.id]: newOverColumn,
+      };
+
+      onBoardUpdate({ ...board, columns: newColumns });
+    }
   };
 
   const handleExport = () => {
@@ -184,57 +152,68 @@ const BoardComponent: React.FC = () => {
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const fileReader = new FileReader();
-    if (event.target.files && event.target.files[0]) {
-      fileReader.readAsText(event.target.files[0], "UTF-8");
-      fileReader.onload = e => {
-        if (e.target && e.target.result) {
-          setBoard(JSON.parse(e.target.result as string));
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const importedBoard = JSON.parse(content) as Board;
+          // Basic validation
+          if (importedBoard.id && importedBoard.title && importedBoard.columns) {
+            onImportBoard(importedBoard);
+          } else {
+            alert('Arquivo inválido: Estrutura do board incorreta.');
+          }
+        } catch (error) {
+          console.error('Erro ao importar:', error);
+          alert('Erro ao importar o arquivo.');
         }
       };
+      reader.readAsText(file);
     }
   };
 
   const deleteColumn = (id: string) => {
-    setBoard(board => {
-      const columnToDelete = board.columns[id];
-      if (!columnToDelete) return board;
+    const columnToDelete = board.columns[id];
+    if (!columnToDelete) return;
 
-      const tasksToDelete = new Set(columnToDelete.taskIds);
-      const newTasks = Object.keys(board.tasks)
-        .filter(taskId => !tasksToDelete.has(taskId))
-        .reduce((acc, taskId) => {
-          acc[taskId] = board.tasks[taskId];
-          return acc;
-        }, {} as Record<string, Task>);
+    const tasksToDelete = new Set(columnToDelete.taskIds);
+    const newTasks = Object.keys(board.tasks)
+      .filter(taskId => !tasksToDelete.has(taskId))
+      .reduce((acc, taskId) => {
+        acc[taskId] = board.tasks[taskId];
+        return acc;
+      }, {} as Record<string, Task>);
 
-      const { [id]: deletedColumn, ...remainingColumns } = board.columns;
+    const { [id]: deletedColumn, ...remainingColumns } = board.columns;
 
-      const newColumnOrder = board.columnOrder.filter(colId => colId !== id);
+    const newColumnOrder = board.columnOrder.filter(colId => colId !== id);
 
-      return {
-        ...board,
-        tasks: newTasks,
-        columns: remainingColumns,
-        columnOrder: newColumnOrder,
-      };
+    onBoardUpdate({
+      ...board,
+      tasks: newTasks,
+      columns: remainingColumns,
+      columnOrder: newColumnOrder,
     });
   };
 
   const [isEditingBoardTitle, setIsEditingBoardTitle] = useState(false);
-  const [boardTitle, setBoardTitle] = useState(board.title);
+  const [tempTitle, setTempTitle] = useState(board.title);
 
   useEffect(() => {
-    setBoardTitle(board.title);
+    setTempTitle(board.title);
   }, [board.title]);
 
-  const handleBoardTitleChange = (newTitle: string) => {
-    setBoard(b => ({ ...b, title: newTitle }));
+  const handleBoardTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempTitle(e.target.value);
   };
 
   const handleBoardTitleBlur = () => {
     setIsEditingBoardTitle(false);
-    handleBoardTitleChange(boardTitle);
+    if (tempTitle.trim() !== board.title) {
+      onBoardUpdate({ ...board, title: tempTitle });
+    }
   };
 
   const handleBoardTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -250,68 +229,74 @@ const BoardComponent: React.FC = () => {
       onDragEnd={handleDragEnd}
       onDragOver={handleDragOver}
     >
-      <div className="p-10 min-h-screen bg-[#f5f5f5] text-gray-800">
-        <div className="flex justify-between items-center mb-8">
+      <div className="h-screen flex flex-col bg-linear-to-br from-gray-50 to-gray-100 text-gray-800 w-full overflow-hidden">
+        <div className="p-6 md:p-8 flex justify-between items-center border-b border-gray-200/50 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
           {isEditingBoardTitle ? (
             <input
               type="text"
-              value={boardTitle}
+              value={tempTitle}
               autoFocus
-              onChange={(e) => setBoardTitle(e.target.value)}
+              onChange={handleBoardTitleChange}
               onBlur={handleBoardTitleBlur}
               onKeyDown={handleBoardTitleKeyDown}
-              className="text-4xl font-bold bg-transparent border-b-2 border-gray-400 focus:outline-none"
+              className="text-3xl font-bold bg-transparent border-b-2 border-primary-500 focus:outline-none text-gray-900"
             />
           ) : (
-            <h1 onDoubleClick={() => setIsEditingBoardTitle(true)} className="text-4xl font-bold cursor-pointer">
+            <h1 onDoubleClick={() => setIsEditingBoardTitle(true)} className="text-3xl font-bold cursor-pointer hover:bg-gray-100/50 rounded px-2 -ml-2 transition-colors text-gray-900">
               {board.title}
             </h1>
           )}
-          <div className="flex space-x-2">
+          <div className="flex space-x-3">
             <input type="file" id="import-file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
             <button
               onClick={() => document.getElementById('import-file')?.click()}
-              className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded border border-gray-300"
+              className="bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-200 shadow-sm transition-all hover:shadow-md text-sm"
             >
-              Importar JSON
+              Importar
             </button>
             <button
               onClick={handleExport}
-              className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded border border-gray-300"
+              className="bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-all hover:shadow-md text-sm"
             >
-              Exportar JSON
+              Exportar
             </button>
           </div>
         </div>
-        <div className="flex items-start space-x-4 overflow-x-auto pb-4">
-          <SortableContext items={board.columnOrder}>
-            {board.columnOrder.map(colId => {
-              const col = board.columns[colId];
-              const tasks = col.taskIds.map(taskId => board.tasks[taskId]);
-              return <ColumnComponent key={col.id} column={col} tasks={tasks} setBoard={setBoard} deleteColumn={deleteColumn} />
-            })}
-          </SortableContext>
-          <button
-            onClick={() => {
-              const newColumnId = `col-${Date.now()}`;
-              const newColumn: Column = {
-                id: newColumnId,
-                title: 'Nova Coluna',
-                taskIds: [],
-              };
-              setBoard(board => ({
-                ...board,
-                columns: {
-                  ...board.columns,
-                  [newColumnId]: newColumn,
-                },
-                columnOrder: [...board.columnOrder, newColumnId],
-              }));
-            }}
-            className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded border border-gray-300 h-fit flex-shrink-0"
-          >
-            + Adicionar Coluna
-          </button>
+
+        <div className="grow overflow-x-auto overflow-y-hidden">
+          <div className="flex items-start h-full p-6 md:p-8 space-x-6">
+            <SortableContext items={board.columnOrder}>
+              {board.columnOrder.map(colId => {
+                const col = board.columns[colId];
+                const tasks = col.taskIds.map(taskId => board.tasks[taskId]).filter(Boolean);
+                return <ColumnComponent key={col.id} column={col} tasks={tasks} setBoard={(updateFn) => {
+                  const updatedBoard = typeof updateFn === 'function' ? updateFn(board) : updateFn;
+                  onBoardUpdate(updatedBoard);
+                }} deleteColumn={deleteColumn} />
+              })}
+            </SortableContext>
+            <button
+              onClick={() => {
+                const newColumnId = `col-${Date.now()}`;
+                const newColumn: Column = {
+                  id: newColumnId,
+                  title: 'Nova Coluna',
+                  taskIds: [],
+                };
+                onBoardUpdate({
+                  ...board,
+                  columns: {
+                    ...board.columns,
+                    [newColumnId]: newColumn,
+                  },
+                  columnOrder: [...board.columnOrder, newColumnId],
+                });
+              }}
+              className="bg-white/50 hover:bg-white text-gray-600 hover:text-gray-900 font-medium py-3 px-6 rounded-xl border border-dashed border-gray-300 hover:border-gray-400 h-fit shrink-0 w-80 transition-all flex items-center justify-center gap-2"
+            >
+              <span>+</span> Adicionar Coluna
+            </button>
+          </div>
         </div>
       </div>
     </DndContext>
