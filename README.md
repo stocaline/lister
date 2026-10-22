@@ -25,4 +25,19 @@ Os dados ficam em `%APPDATA%\com.lister.app\lister_data.bin` (JSON).
 
 ## Skill para o Claude
 
-`claude-skill/lister/` é uma skill do Claude Code que lê e edita os boards (criar, editar, mover, concluir tarefas, colunas, notas). Para instalar, copie a pasta para `~/.claude/skills/lister/`. O app recarrega os dados do disco quando a janela ganha foco, então as mudanças feitas pelo Claude aparecem ao clicar nele.
+`claude-skill/lister/` é uma skill do Claude Code que lê e edita os boards (criar, editar, mover, concluir tarefas, colunas, notas). Precisa de Python 3 no PC.
+
+Para instalar, rode dentro do Claude Code:
+
+```
+/plugin install lister --marketplace stocaline/lister
+```
+
+Em versões do Claude Code anteriores à 2.1.275, use dois comandos:
+
+```
+/plugin marketplace add stocaline/lister
+/plugin install lister@lister
+```
+
+Depois é só pedir em português: "o que tem no quadro Casa?", "adiciona 'pagar luz' no Hoje com prioridade alta". O app recarrega os dados do disco quando a janela ganha foco, então as mudanças feitas pelo Claude aparecem ao clicar nele.

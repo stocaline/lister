@@ -1,15 +1,16 @@
 ---
 name: lister
-description: Lê e edita os dados do Lister (app desktop de kanban/notas do usuário, Tauri) — listar boards, ver colunas e tarefas, buscar, criar/editar/mover/concluir/apagar tarefas, subtarefas, tags, prioridade, tempo registrado, colunas, boards e blocos de notas. Use sempre que o usuário falar do Lister, "meus boards", "minhas tarefas do lister", "adiciona no lister", "o que tem no board X", "marca como feita", "move pra coluna Y", "anota no bloco de notas", mesmo sem citar o nome do app quando o contexto for as listas/boards pessoais dele. NÃO é para tickets do Innoup (use innoup-tickets).
+description: Lê e edita os dados do Lister (app desktop de kanban/notas do usuário, Tauri) — listar boards, ver colunas e tarefas, buscar, criar/editar/mover/concluir/apagar tarefas, subtarefas, tags, prioridade, tempo registrado, colunas, boards e blocos de notas. Use sempre que o usuário falar do Lister, "meus boards", "minhas tarefas do lister", "adiciona no lister", "o que tem no board X", "marca como feita", "move pra coluna Y", "anota no bloco de notas", mesmo sem citar o nome do app quando o contexto for as listas/boards pessoais dele.
 ---
 
 # Lister
 
 Os dados ficam em `%APPDATA%\com.lister.app\lister_data.bin` (JSON puro, apesar do .bin).
-Toda leitura/escrita passa pelo script — nunca edite o arquivo à mão:
+Toda leitura/escrita passa pelo script `lister.py`, que fica na pasta base desta skill (o caminho
+aparece como "Base directory for this skill" quando ela carrega) — nunca edite o arquivo à mão:
 
 ```
-python ~/.claude/skills/lister/lister.py <comando> ...
+python "<pasta base desta skill>/lister.py" <comando> ...
 ```
 
 Boards e colunas aceitam id ou título (sem diferenciar maiúsculas; prefixo único também vale).

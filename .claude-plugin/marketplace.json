@@ -1,0 +1,19 @@
+{
+  "name": "lister",
+  "owner": {
+    "name": "Richard de Souza Bercheli"
+  },
+  "metadata": {
+    "description": "Skill do Claude Code para ler e editar os quadros do Lister",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "lister",
+      "description": "Lê e edita os quadros, tarefas e notas do Lister (app kanban desktop) direto no arquivo local de dados.",
+      "source": "./claude-skill/lister",
+      "strict": false,
+      "skills": ["./"]
+    }
+  ]
+}
