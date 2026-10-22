@@ -1,105 +1,197 @@
-import React, { useState } from 'react';
-import type { Board } from '../types';
+import { useState } from "react";
+import type { Board } from "../types";
+import { fmtShort, isNotes, sumElapsed } from "../types";
+import Icon from "./Icon";
+import ConfirmDialog from "./ConfirmDialog";
 
-interface SidebarProps {
-    boards: Board[];
-    activeBoardId: string;
-    onSelectBoard: (boardId: string) => void;
-    onCreateBoard: () => void;
-    onDeleteBoard: (boardId: string) => void;
+interface Props {
+  boards: Board[];
+  activeBoardId: string;
+  liveBoardId?: string;
+  now: number;
+  onSelectBoard: (id: string) => void;
+  onCreateBoard: (title: string, kind: "board" | "notes") => void;
+  onDeleteBoard: (id: string) => void;
+  onOpenPalette: () => void;
+  settingsOpen: boolean;
+  onOpenSettings: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ boards, activeBoardId, onSelectBoard, onCreateBoard, onDeleteBoard }) => {
-    const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
+export default function Sidebar({ boards, activeBoardId, liveBoardId, now, onSelectBoard, onCreateBoard, onDeleteBoard, onOpenPalette, settingsOpen, onOpenSettings }: Props) {
+  const [pendingDelete, setPendingDelete] = useState<Board | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<"board" | "notes">("board");
 
-    const handleDeleteClick = (e: React.MouseEvent, boardId: string) => {
-        e.stopPropagation();
-        setBoardToDelete(boardId);
-    };
+  const totals = new Map(boards.map((b) => [b.id, sumElapsed(Object.values(b.tasks), now)]));
+  const max = Math.max(1, ...totals.values());
+  const all = [...totals.values()].reduce((a, b) => a + b, 0);
 
-    const confirmDelete = () => {
-        if (boardToDelete) {
-            onDeleteBoard(boardToDelete);
-            setBoardToDelete(null);
-        }
-    };
+  const submit = () => {
+    if (!name.trim()) return;
+    onCreateBoard(name, kind);
+    setCreating(false);
+    setName("");
+  };
+  const cancel = () => {
+    setCreating(false);
+    setName("");
+    setKind("board");
+  };
 
-    const cancelDelete = () => {
-        setBoardToDelete(null);
-    };
+  return (
+    <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-line bg-rail">
+      <div className="flex h-16 items-center justify-between px-5">
+        <span className="flex items-center gap-2.5">
+          {/* The app mark (src-tauri/icons/lister.svg) without its tile. */}
+          <svg viewBox="232 220 560 572" className="h-6 w-6" aria-hidden>
+            <path d="M232 268a48 48 0 0 1 48-48h88a48 48 0 0 1 48 48v348h328a48 48 0 0 1 48 48v88a48 48 0 0 1-48 48H280a48 48 0 0 1-48-48z" fill="var(--color-accent)" />
+            <rect x="476" y="220" width="316" height="112" rx="40" fill="var(--color-cream)" />
+            <rect x="476" y="404" width="212" height="112" rx="40" fill="var(--color-cream)" opacity=".55" />
+            <circle cx="768" cy="460" r="52" fill="var(--color-stamp)" />
+          </svg>
+          <span className="font-cond text-[26px] font-bold uppercase leading-none tracking-[0.06em]">Lister</span>
+        </span>
+        <button
+          onClick={onOpenPalette}
+          className="flex items-center gap-1.5 rounded border border-line-2 px-2 py-1 font-cond text-xs font-semibold text-muted hover:border-faint hover:text-cream"
+          title="Ir para quadro ou tarefa"
+        >
+          <Icon name="search" size={13} />
+          Ctrl K
+        </button>
+      </div>
 
-    return (
-        <div className="w-64 bg-gray-900 text-white h-screen flex flex-col shrink-0">
-            <div className="p-4 border-b border-gray-700">
-                <h2 className="text-xl font-bold">Meus Quadros</h2>
-            </div>
+      <div className="flex items-baseline justify-between px-5 pb-2 pt-3 font-cond text-xs font-semibold uppercase tracking-[0.14em] text-faint">
+        <span>Quadros</span>
+        <span className="tnum">{fmtShort(all) || "0m"} no total</span>
+      </div>
 
-            <div className="grow overflow-y-auto p-2 space-y-2">
-                {boards.map((board) => (
-                    <div
-                        key={board.id}
-                        onClick={() => onSelectBoard(board.id)}
-                        className={`group flex items-center justify-between p-3 rounded cursor-pointer transition-colors ${activeBoardId === board.id
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'hover:bg-gray-800 text-gray-300'
-                            }`}
-                    >
-                        <div className="overflow-hidden">
-                            <div className="font-medium truncate">{board.title}</div>
-                            <div className="text-xs opacity-70 mt-1">
-                                {Object.keys(board.columns).length} colunas
-                            </div>
-                        </div>
-                        <button
-                            onClick={(e) => handleDeleteClick(e, board.id)}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded transition-all"
-                            title="Excluir quadro"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 6h18" />
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                            </svg>
-                        </button>
-                    </div>
-                ))}
-            </div>
-
-            {boardToDelete && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white text-gray-800 rounded-lg p-6 shadow-xl w-full max-w-sm">
-                        <h3 className="text-lg font-bold mb-2">Excluir Quadro?</h3>
-                        <p className="text-sm text-gray-600 mb-6">
-                            Tem certeza que deseja excluir este quadro? Esta ação não pode ser desfeita.
-                        </p>
-                        <div className="flex justify-end space-x-2">
-                            <button
-                                onClick={cancelDelete}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-medium"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded font-medium"
-                            >
-                                Excluir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="p-4 border-t border-gray-700">
+      <nav className="grow space-y-0.5 overflow-y-auto px-2 pb-2">
+        {boards.map((b) => {
+          const active = !settingsOpen && activeBoardId === b.id;
+          const total = totals.get(b.id) || 0;
+          return (
+            <div
+              key={b.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectBoard(b.id)}
+              onKeyDown={(e) => e.key === "Enter" && onSelectBoard(b.id)}
+              className={`group relative flex cursor-pointer flex-col gap-2 rounded-md px-3 py-2.5 transition-colors ${
+                active ? "bg-slab-2 text-cream" : "text-muted hover:bg-slab hover:text-cream"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {isNotes(b) && <Icon name="note" size={14} className={active ? "text-accent-ink" : "text-faint"} />}
+                <span className="min-w-0 grow truncate font-medium">{b.title}</span>
+                {liveBoardId === b.id && <span className="live-dot h-1.5 w-1.5 rounded-full bg-accent" title="Cronômetro rodando" />}
+                <span className="tnum font-cond text-[13px] font-semibold text-faint group-hover:hidden">{isNotes(b) ? "notas" : fmtShort(total) || "—"}</span>
                 <button
-                    onClick={onCreateBoard}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingDelete(b);
+                  }}
+                  className="hidden rounded p-0.5 text-faint hover:text-stamp group-hover:block"
+                  title="Excluir quadro"
+                  aria-label={`Excluir quadro ${b.title}`}
                 >
-                    <span>+</span> Novo Quadro
+                  <Icon name="trash" size={15} />
                 </button>
+              </div>
+              {!isNotes(b) && (
+              <div className="h-[3px] rounded-full bg-line" title={total ? `${fmtShort(total)} registrados` : "Sem tempo registrado"}>
+                <div
+                  className={`h-[3px] rounded-full ${active ? "bg-accent" : "bg-faint/60"}`}
+                  style={{ width: total ? `${Math.max(3, (total / max) * 100)}%` : 0 }}
+                />
+              </div>
+              )}
             </div>
-        </div>
-    );
-};
+          );
+        })}
+      </nav>
 
-export default Sidebar;
+      <div className="border-t border-line p-3">
+        {creating ? (
+          <div className="pop-in space-y-2">
+            <div className="grid grid-cols-2 rounded-md border border-line-2 p-0.5" role="radiogroup" aria-label="Tipo">
+              {(
+                [
+                  ["board", "Quadro", "board"],
+                  ["notes", "Notas", "note"],
+                ] as const
+              ).map(([k, label, icon]) => (
+                <button
+                  key={k}
+                  role="radio"
+                  aria-checked={kind === k}
+                  onClick={() => setKind(k)}
+                  className={`flex items-center justify-center gap-1.5 rounded py-1.5 font-cond text-sm font-bold uppercase tracking-[0.06em] transition-colors ${
+                    kind === k ? "bg-slab-3 text-cream" : "text-faint hover:text-muted"
+                  }`}
+                >
+                  <Icon name={icon} size={14} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+                if (e.key === "Escape") cancel();
+              }}
+              placeholder={kind === "notes" ? "Nome do bloco de notas" : "Nome do quadro"}
+              className="w-full rounded-md border border-line-2 bg-slab px-3 py-2 text-sm placeholder-faint outline-none focus:border-accent"
+            />
+            <div className="flex gap-2">
+              <button onClick={cancel} className="flex-1 rounded-md py-1.5 text-sm text-muted hover:bg-slab hover:text-cream">
+                Cancelar
+              </button>
+              <button onClick={submit} className="flex-1 rounded-md bg-accent py-1.5 text-sm font-semibold text-on-accent hover:brightness-110">
+                Criar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+          <button
+            onClick={() => setCreating(true)}
+            className="flex grow items-center justify-center gap-2 rounded-md border border-dashed border-line-2 py-2 text-sm font-medium text-muted transition-colors hover:border-accent hover:text-accent-ink"
+          >
+            <Icon name="plus" size={16} />
+            Novo quadro
+          </button>
+          <button
+            onClick={onOpenSettings}
+            aria-label="Configurações"
+            title="Configurações"
+            className={`flex w-10 shrink-0 items-center justify-center rounded-md border transition-colors ${
+              settingsOpen ? "border-accent bg-accent-deep text-accent-ink" : "border-line-2 text-muted hover:border-faint hover:text-cream"
+            }`}
+          >
+            <Icon name="gear" size={17} />
+          </button>
+          </div>
+        )}
+      </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Excluir “${pendingDelete.title}”?`}
+          body={isNotes(pendingDelete) ? "O bloco de notas e todo o texto dele serão apagados. Não dá para desfazer." : "O quadro, suas colunas, tarefas e o tempo registrado serão apagados. Não dá para desfazer."}
+          confirmLabel="Excluir quadro"
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            onDeleteBoard(pendingDelete.id);
+            setPendingDelete(null);
+          }}
+        />
+      )}
+    </aside>
+  );
+}

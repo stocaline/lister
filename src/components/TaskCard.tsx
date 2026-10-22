@@ -1,153 +1,186 @@
-import React, { useState } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import type { Board, Task } from '../types';
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { Board, Tag, Task } from "../types";
+import { PRIORITY_LABEL, PRIORITY_TEXT, elapsed, fmtShort } from "../types";
+import Icon from "./Icon";
 
-interface TaskCardProps {
+interface Props {
   task: Task;
-  setBoard: React.Dispatch<React.SetStateAction<Board>>;
+  tags: Record<string, Tag>;
+  now: number;
+  setBoard: (fn: (b: Board) => Board) => void;
+  onOpen: () => void;
+  onToggleTimer: () => void;
+  onDelete: () => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, setBoard }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [content, setContent] = useState(task.content);
+export default function TaskCard({ task, tags, now, setBoard, onOpen, onToggleTimer, onDelete }: Props) {
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menuRef.current?.contains(e.target as Node)) setMenu(null);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [menu]);
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
-    data: {
-      type: 'Task',
-      task,
-    }
+    data: { type: "Task", task },
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const handleContentChange = (newContent: string) => {
-    setBoard(board => ({
-      ...board,
-      tasks: {
-        ...board.tasks,
-        [task.id]: {
-          ...board.tasks[task.id],
-          content: newContent,
-        },
-      },
-    }));
-  };
-
-  const handleToggleCompleted = () => {
-    setBoard(board => {
-      const isCompleted = !board.tasks[task.id].completed;
+  const toggleCompleted = () =>
+    setBoard((b) => {
+      const t = b.tasks[task.id];
+      const completed = !t.completed;
+      const timeLog = elapsed(t, Date.now());
       return {
-        ...board,
-        tasks: {
-          ...board.tasks,
-          [task.id]: {
-            ...board.tasks[task.id],
-            completed: isCompleted,
-            completedAt: isCompleted ? Date.now() : null,
-          }
-        }
-      }
-    });
-  };
-
-  const handleDelete = () => {
-    setBoard(board => {
-      const { [task.id]: deletedTask, ...remainingTasks } = board.tasks;
-
-      const column = Object.values(board.columns).find(c => c.taskIds.includes(task.id));
-
-      if (!column) return board;
-
-      return {
-        ...board,
-        tasks: remainingTasks,
-        columns: {
-          ...board.columns,
-          [column.id]: {
-            ...column,
-            taskIds: column.taskIds.filter(id => id !== task.id),
-          },
-        },
+        ...b,
+        tasks: { ...b.tasks, [t.id]: { ...t, completed, completedAt: completed ? Date.now() : null, isRunning: false, timeLog, lastStartTime: undefined } },
       };
     });
-  };
 
-  const handleBlur = () => {
-    setIsEditing(false);
-    handleContentChange(content);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      setIsEditing(false);
-      handleContentChange(content);
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <div ref={setNodeRef} style={style} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200/50 ring-2 ring-blue-500/20">
-        <textarea
-          value={content}
-          autoFocus
-          onChange={(e) => setContent(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          className="w-full bg-transparent border-none text-gray-900 resize-none text-sm leading-relaxed focus:ring-0 p-0"
-          rows={Math.max(2, content.split('\n').length)}
-        />
-      </div>
-    );
-  }
+  const running = !!task.isRunning;
+  const time = elapsed(task, now);
+  const subtasks = task.subtasks || [];
+  const done = subtasks.filter((s) => s.done).length;
+  const cardTags = (task.tags || []).map((id) => tags[id]).filter(Boolean);
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`group bg-white p-4 rounded-xl shadow-sm border border-gray-200/50 hover:shadow-md hover:border-blue-300/50 transition-all flex items-start space-x-3 cursor-grab active:cursor-grabbing ${task.completed ? 'opacity-60 bg-gray-50' : ''}`}
-    >
-      <input
-        type="checkbox"
-        checked={task.completed}
-        onChange={handleToggleCompleted}
-        className="mt-0.5 form-checkbox h-4 w-4 text-blue-600 bg-gray-50 border-gray-300 rounded focus:ring-blue-500 cursor-pointer transition-colors"
-      />
-      <div className="grow min-w-0" onDoubleClick={() => setIsEditing(true)}>
-        <p className={`text-sm leading-relaxed whitespace-pre-wrap wrap-break-word ${task.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-          {task.content}
-        </p>
-        <div className="flex items-center gap-2 mt-2">
-          {task.createdAt && (
-            <span className="text-[10px] text-gray-400 font-medium">
-              {new Date(task.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-            </span>
-          )}
-        </div>
-      </div>
-      <button
-        onClick={handleDelete}
-        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-        title="Excluir tarefa"
+    <>
+      <article
+        ref={setNodeRef}
+        data-task-id={task.id}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        {...attributes}
+        {...listeners}
+        tabIndex={0}
+        aria-label={task.content}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onOpen();
+          if (e.key === "Delete") onDelete();
+        }}
+        className={`group relative cursor-pointer rounded-md border px-3 py-2.5 outline-none transition-[border-color,background-color] focus-visible:border-accent ${
+          isDragging ? "z-10 opacity-50" : ""
+        } ${
+          running
+            ? "border-accent bg-accent-deep/50"
+            : task.completed
+              ? "border-transparent bg-slab/50"
+              : "border-line bg-slab hover:border-line-2 hover:bg-slab-2"
+        }`}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-        </svg>
-      </button>
-    </div>
-  );
-};
+        <div className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={task.completed}
+            onChange={toggleCompleted}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Concluir tarefa"
+            className="check mt-[3px]"
+          />
+          <div className="min-w-0 grow pr-6">
+            {cardTags.length > 0 && (
+              <div className="mb-1.5 flex flex-wrap gap-1">
+                {cardTags.map((t) => (
+                  <span key={t.id} className={`h-1 w-7 rounded-full ${t.color}`} title={t.title} />
+                ))}
+              </div>
+            )}
+            <p
+              className={`whitespace-pre-wrap break-words text-[14px] font-medium leading-snug ${
+                task.completed ? "text-faint line-through decoration-faint/60" : "text-cream"
+              }`}
+            >
+              {task.content}
+            </p>
+            {task.description && !task.completed && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-muted">{task.description}</p>}
 
-export default TaskCard;
+            <div className="mt-2 flex items-center gap-2.5 font-cond text-[13px] font-semibold uppercase tracking-[0.05em]">
+              {task.priority && task.priority !== "medium" && !task.completed && <span className={PRIORITY_TEXT[task.priority]}>{PRIORITY_LABEL[task.priority]}</span>}
+              {subtasks.length > 0 && (
+                <span className={done === subtasks.length ? "text-sage" : "text-muted"}>
+                  {done}/{subtasks.length}
+                </span>
+              )}
+              {task.createdAt > 0 && (
+                <span className="text-faint">{new Date(task.createdAt).toLocaleDateString("pt-BR", { day: "numeric", month: "short" }).replace(".", "")}</span>
+              )}
+              {(time >= 1000 || running) && (
+                <span className={`tnum ml-auto flex items-center gap-1.5 normal-case ${running ? "text-accent-ink" : "text-muted"}`}>
+                  {running && <span className="live-dot h-1.5 w-1.5 rounded-full bg-accent" />}
+                  {fmtShort(time) || "0s"}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {!task.completed && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleTimer();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={`absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md transition-opacity ${
+              running
+                ? "bg-accent text-on-accent opacity-100"
+                : "bg-slab-3 text-accent-ink opacity-0 hover:bg-accent hover:text-on-accent focus:opacity-100 group-hover:opacity-100"
+            }`}
+            title={running ? "Pausar cronômetro (Espaço)" : "Iniciar cronômetro (Espaço)"}
+            aria-label={running ? "Pausar cronômetro" : "Iniciar cronômetro"}
+          >
+            <Icon name={running ? "pause" : "play"} size={14} />
+          </button>
+        )}
+      </article>
+
+      {menu &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ top: Math.min(menu.y, window.innerHeight - 140), left: Math.min(menu.x, window.innerWidth - 220) }}
+            className="pop-in fixed z-50 w-52 rounded-md border border-line-2 bg-slab-2 py-1 text-sm shadow-[0_16px_32px_-8px_rgb(0_0_0/0.6)]"
+          >
+            {!task.completed && (
+              <button
+                role="menuitem"
+                onClick={() => (onToggleTimer(), setMenu(null))}
+                className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-slab-3"
+              >
+                <Icon name={running ? "pause" : "play"} size={15} className="text-accent-ink" />
+                {running ? "Pausar cronômetro" : "Iniciar cronômetro"}
+              </button>
+            )}
+            <button role="menuitem" onClick={() => (onOpen(), setMenu(null))} className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-slab-3">
+              <Icon name="open" size={15} className="text-muted" />
+              Abrir detalhes
+            </button>
+            <div className="my-1 border-t border-line" />
+            <button role="menuitem" onClick={() => (onDelete(), setMenu(null))} className="flex w-full items-center gap-2.5 px-3 py-2 text-stamp hover:bg-slab-3">
+              <Icon name="trash" size={15} />
+              Excluir tarefa
+            </button>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
